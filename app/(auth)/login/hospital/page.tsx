@@ -1,14 +1,12 @@
-"use client"
 import React from 'react'
-import HomePage from '@/components/home/HomePage'
-
-
+import HospitalLoginForm from '@/components/auth/HospitalLoginForm'
 function page() {
   return (
     <div>
-      <HomePage/>
+      <HospitalLoginForm/>
     </div>
   )
 }
 
 export default page
+
