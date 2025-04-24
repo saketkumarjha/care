@@ -8,6 +8,25 @@ interface Facility {
   isAvailable: boolean;
 }
 
+// Define the doctor interface
+interface Doctor {
+  doctorId: string;
+  whenJoined: string;
+  whenLeft: string | null;
+  isJoined: boolean;
+}
+
+// Define the admin interface
+interface Admin {
+  adminId: string;
+  name: string;
+  role: string;
+  permissions: string;
+  generatedId: string;
+  generatedPassword: string;
+  isAdmin: boolean;
+}
+
 // Define the hospital data interface
 interface HospitalData {
   name: string;
@@ -25,8 +44,8 @@ interface HospitalData {
   facilitiesInHospital: Facility[];
   isActive: boolean;
   ratingOfHospital: number;
-  doctorUnderHospitalID: string[];
-  adminsInTheHospital: string[];
+  doctorUnderHospitalID: Doctor[];
+  adminsInTheHospital: Admin[];
 }
 
 // Define the response interface
@@ -46,10 +65,11 @@ export interface LoginCredentials {
 export interface LoginResponse {
   success: boolean;
   message: string;
-  token?: string;
-  hospitalId?: string; // Added hospitalId property
+  data?: {
+    token: string;
+    hospitalId: string;
+  };
   error?: unknown;
-  data?: Record<string, unknown> | null;
 }
 // API base URL - should be moved to an environment variable in production
 const API_BASE_URL =
@@ -64,6 +84,8 @@ export const registerHospital = async (
   hospitalData: HospitalData
 ): Promise<ApiResponse> => {
   try {
+    console.log("Sending registration data:", JSON.stringify(hospitalData));
+    
     const response = await axios.post(
       `${API_BASE_URL}/api/v1/hospital/signup`,
       hospitalData,
@@ -74,13 +96,21 @@ export const registerHospital = async (
       }
     );
 
+    console.log("Registration response:", response);
+
     return {
       success: true,
       message: "Hospital registered successfully",
+      data: response.data
     };
   } catch (error) {
+    console.error("Registration error full details:", error);
+    
     if (axios.isAxiosError(error)) {
-      // Handle Axios errors
+      // Log the complete error response for debugging
+      console.error("API error response:", error.response?.data);
+      console.error("API error status:", error.response?.status);
+      
       return {
         success: false,
         message: error.response?.data?.message || "Failed to register hospital",
@@ -152,31 +182,29 @@ export const loginHospital = async (
   credentials: LoginCredentials
 ): Promise<LoginResponse> => {
   try {
-    // Create FormData for the request
-    const formData = new FormData();
-    formData.append('email', credentials.email);
-    formData.append('password', credentials.password);
+    // Create URLSearchParams for the request
+    const params = new URLSearchParams();
+    params.append('email', credentials.email);
+    params.append('password', credentials.password);
 
     const response = await axios.post(
       `${API_BASE_URL}/api/v1/hospital/login`,
-      formData,
+      params,
       {
         headers: {
-          'Content-Type': 'multipart/form-data',
+          'Content-Type': 'application/x-www-form-urlencoded',
         },
       }
     );
 
     // Add debug log to see actual response structure
-    console.log('API Raw Response:', response);
+    console.log('API Raw Response:', response.data.token,response.data);
 
-    // Extract the relevant data - adjust based on actual API response structure
+    // Return the actual response structure
     return {
       success: true,
-      message: "Login successful",
-      token: response.data.token, // Make sure this matches the actual response structure
-      hospitalId: response.data.hospitalId, // Make sure this matches the actual response structure
-      data: response.data,
+      message: response.data.message || "Login successful",
+      data: response.data.data || {}
     };
   } catch (error) {
     console.error('Login API error:', error);
@@ -185,9 +213,19 @@ export const loginHospital = async (
       // Handle Axios errors with more detailed logging
       console.error('Axios error response:', error.response?.data);
       
+      // Extract error message from HTML response if needed
+      let errorMessage = "Login failed";
+      if (error.response?.data) {
+        const errorHtml = error.response.data;
+        const match = errorHtml.match(/Error: (.*?)<br>/);
+        if (match && match[1]) {
+          errorMessage = match[1];
+        }
+      }
+      
       return {
         success: false,
-        message: error.response?.data?.message || "Login failed",
+        message: errorMessage,
         error: error.response?.data || error.message,
       };
     }

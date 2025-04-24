@@ -21,6 +21,8 @@ import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { hospitalSchema } from "../../lib/validation/hospitalSchema";
 import { registerHospital } from "@/lib/api/hospital";
+// import {useHospitalAuth} from "@/context/HospitalAuthContext";
+import { useRouter } from "next/navigation";
 
 function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -30,7 +32,9 @@ function RegisterPage() {
   ]);
   const [selectedImageName, setSelectedImageName] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
-
+  // const { registerHospital } = useHospitalAuth(); // Use our context
+  const router = useRouter(); // Use Next.js router for navigation
+  // const [isSubmitting, setIsSubmitting] = useState(false);
   const {
     register,
     handleSubmit,
@@ -89,18 +93,18 @@ function RegisterPage() {
     remove(index);
   };
 
-  const handleFacilityChange = (index, field, value) => {
+  const handleFacilityChange = (index: number, field: keyof Facility, value: string | number) => {
     const updatedFacilities = [...facilityList];
 
     if (field === "cost") {
       // Ensure cost is always a number
-      const numValue = parseFloat(value) || 0;
+      const numValue = parseFloat(value as string) || 0;
       updatedFacilities[index] = {
         ...updatedFacilities[index],
         [field]: numValue,
       };
       setFacilityList(updatedFacilities);
-      setValue(`facilitiesInHospital.${index}.${field}`, numValue, {
+      setValue(`facilitiesInHospital.${index}.${field}` as Path<FormDataType>, numValue, {
         shouldValidate: true,
       });
     } else {
@@ -109,7 +113,7 @@ function RegisterPage() {
         [field]: value,
       };
       setFacilityList(updatedFacilities);
-      setValue(`facilitiesInHospital.${index}.${field}`, value, {
+      setValue(`facilitiesInHospital.${index}.${field}` as any, value, {
         shouldValidate: true,
       });
     }
@@ -156,17 +160,17 @@ function RegisterPage() {
     hospitalImages: File[];
   }
 
-  interface RegisterResponse {
-    success: boolean;
-    data?: any;
-    message?: string;
-  }
+  // interface RegisterResponse {
+  //   success: boolean;
+  //   data?: any;
+  //   message?: string;
+  // }
 
   const onSubmit = async (data: FormDataType): Promise<void> => {
     setIsLoading(true);
-
+  
     try {
-      // Create a JSON object that matches what your API expects
+      // Create the base JSON data object
       const jsonData = {
         name: data.name,
         username: data.username,
@@ -174,73 +178,84 @@ function RegisterPage() {
         licenseNumberOfHospital: data.licenseNumberOfHospital,
         contactNumberOfHospital: data.contactNumberOfHospital,
         emailOfHospital: data.emailOfHospital,
-
-        // Format address correctly as an object
         hospitalAddress: {
           addressLine1: data.hospitalAddress.addressLine1,
           addressLine2: data.hospitalAddress.addressLine2,
           addressLine3: data.hospitalAddress.addressLine3,
         },
-
-        // Pass facilities array directly
         facilitiesInHospital: data.facilitiesInHospital,
-
-        // For image, we need a different approach - either convert to base64 or set up separate file upload
-        // For now, we'll set it as empty array if backend allows this
-        hospitalImages: [],
-
-        // Other defaults your schema might require
+        hospitalImages: [] as string[],
         isActive: true,
         ratingOfHospital: 0,
         doctorUnderHospitalID: [],
         adminsInTheHospital: [],
       };
-
-      // If there's an image file, we need to handle it - we could convert to base64 here
-      // This assumes your backend accepts base64 encoded images as strings
+  
+      // Handle image conversion outside the main API call flow
       if (data.hospitalImages && data.hospitalImages.length > 0) {
-        const fileReader = new FileReader();
-        fileReader.onload = async (e) => {
-          // Convert image to base64 string
-          const base64String = e.target?.result?.toString().split(",")[1]; // Remove data URL prefix
-
-          if (base64String) {
-            // Update JSON with image as base64
-            jsonData.hospitalImages = [base64String];
-
-            // Now send the request with the complete data
-            const response = await registerHospital(jsonData);
-            handleResponse(response);
-          }
-        };
-
-        // Start reading the file as data URL (base64)
-        fileReader.readAsDataURL(data.hospitalImages[0]);
+        try {
+          // Convert file to base64 string
+          const base64String = await convertFileToBase64(data.hospitalImages[0]);
+          jsonData.hospitalImages = [base64String];
+        } catch (imageError) {
+          console.error("Error converting image:", imageError);
+          // Continue with registration even if image fails
+        }
+      }
+  
+      // Now make the API call with the prepared data
+      console.log("Submitting hospital data:", jsonData);
+      const response = await registerHospital(jsonData);
+      
+      // Handle the response
+      if (response.success) {
+        console.log("Registration successful:", response.data);
+        alert("Hospital registered successfully!"); // Replace with proper UI feedback
+        // Redirect to login or dashboard
+        router.push("/login/hospital"); // Adjust the path as needed
       } else {
-        // If no image, just send the request as is
-        const response = await registerHospital(jsonData);
-        handleResponse(response);
+        console.error("Registration failed:", response.message, response.error);
+        alert(`Registration failed: ${response.message}`); // Replace with proper UI feedback
       }
     } catch (error) {
-      console.error("An error occurred during registration:", error);
-      // Handle unexpected errors
+      console.error("Form submission error:", error);
+      alert("An unexpected error occurred. Please try again.");
+    } finally {
+      setIsLoading(false);
     }
+  };
+  
+  // Helper function to convert File to base64
+  const convertFileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const base64String = reader.result?.toString().split(',')[1];
+        if (base64String) {
+          resolve(base64String);
+        } else {
+          reject(new Error("Failed to convert image to base64"));
+        }
+      };
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
+    });
   };
 
   // Helper function to handle the response
-  const handleResponse = (response: RegisterResponse) => {
-    if (response.success) {
-      // Handle successful registration
-      console.log("Registration successful:", response.data);
-      // You can add toast notification or redirect here
-      // For example: router.push('/login');
-    } else {
-      // Handle registration failure
-      console.error("Registration failed:", response.message);
-      // You can add error toast notification here
-    }
-    setIsLoading(false);
-  };
+  // const handleResponse = (response: RegisterResponse) => {
+  //   if (response.success) {
+  //     // Handle successful registration
+  //     console.log("Registration successful:", response.data);
+  //     // You can add toast notification or redirect here
+  //     // For example: router.push('/login');
+  //   } else {
+  //     // Handle registration failure
+  //     console.error("Registration failed:", response.message);
+  //     // You can add error toast notification here
+  //   }
+  //   setIsLoading(false);
+  // };
 
   return (
     <div className="min-h-screen bg-gradient-to-r from-green-50 to-white flex flex-col">

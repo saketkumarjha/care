@@ -1,49 +1,49 @@
 "use client";
 import React, { useState } from "react";
-import { Heart, Eye, EyeOff, Mail, Lock, ArrowLeft } from "lucide-react";
+import { Heart, Eye, EyeOff, Mail, Lock, ArrowLeft} from "lucide-react";
 import Link from "next/link";
 import { useRouter } from 'next/navigation';
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { loginSchema, LoginFormData } from "@/lib/validation/loginSchema";
-import { loginHospital } from "@/lib/api/hospital";
-import { useHospitalAuth } from "@/context/HospitalAuthContext";
-
-function LoginPage() {
+import { doctorLoginSchema} from "../../lib/validation/DoctorLoginSchema";
+import { loginDoctor } from "@/lib/api/doctor";
+// import { useDoctorAuth } from "../../context/DoctorAuthContext";
+import { DoctorLoginInput } from "../../lib/validation/DoctorLoginSchema";
+function DoctorLoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
   const router = useRouter();
-  const { login } = useHospitalAuth(); // Use our context
+//   const { login } = useDoctorAuth(); // Use our context
 
   const {
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm<LoginFormData>({
-    resolver: zodResolver(loginSchema),
+  } = useForm<DoctorLoginInput>({
+    resolver: zodResolver(doctorLoginSchema),
     defaultValues: {
       email: "",
       password: "",
-      rememberMe: false,
+      
     },
   });
 
-  const onSubmit = async (data: LoginFormData) => {
+  const onSubmit = async (data: DoctorLoginInput) => {
     try {
       setIsSubmitting(true);
       setLoginError(null);
 
-      console.log("Login attempt with:", {
+      console.log("Doctor login attempt with:", {
         email: data.email,
-        rememberMe: data.rememberMe,
+        
       });
 
       // Call the login API
-      const loginResponse = await loginHospital({
+      const loginResponse = await loginDoctor({
         email: data.email,
         password: data.password,
-        rememberMe: data.rememberMe,
+        rememberMe: false,
       });
 
       // Log the full response for debugging
@@ -57,14 +57,14 @@ function LoginPage() {
       // Log the response data
       console.log("Login response data:", loginResponse.data);
 
-      // Store the hospital data in context
+      // Store the doctor data in context
       if (loginResponse.data) {
-        login(loginResponse.data);
-        console.log("Hospital data stored in context:", loginResponse.data);
+        // login(loginResponse.data);
+        console.log("Doctor data stored in context:", loginResponse.data);
       }
 
-      // Redirect to hospital dashboard
-      router.push("/hospital");
+      // Redirect to doctor dashboard
+    //   router.push("/doctor/dashboard");
       
     } catch (error) {
       console.error("Login submission error:", error);
@@ -85,7 +85,7 @@ function LoginPage() {
         <div className="container mx-auto px-4">
           <div className="flex items-center space-x-2">
             <Heart className="h-6 w-6" />
-            <span className="font-bold text-xl">MediCare Hospital</span>
+            <span className="font-bold text-xl">MediCare Doctor Portal</span>
           </div>
         </div>
       </header>
@@ -106,9 +106,9 @@ function LoginPage() {
           <div className="bg-white rounded-lg shadow-lg overflow-hidden">
             {/* Card Header */}
             <div className="bg-green-600 px-6 py-4">
-              <h1 className="text-white text-xl font-bold">Sign In</h1>
+              <h1 className="text-white text-xl font-bold">Doctor Sign In</h1>
               <p className="text-green-100 text-sm">
-                Access your patient portal
+                Access your doctor portal
               </p>
             </div>
 
@@ -133,7 +133,7 @@ function LoginPage() {
                       className={`w-full pl-10 pr-3 py-2 border ${
                         errors.email ? "border-red-500" : "border-gray-300"
                       } rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500`}
-                      placeholder="you@example.com"
+                      placeholder="doctor@example.com"
                       {...register("email")}
                     />
                   </div>
@@ -193,7 +193,7 @@ function LoginPage() {
                 </div>
 
                 {/* Remember me */}
-                <div className="flex items-center mb-6">
+                {/* <div className="flex items-center mb-6">
                   <input
                     id="rememberMe"
                     type="checkbox"
@@ -206,7 +206,7 @@ function LoginPage() {
                   >
                     Remember me
                   </label>
-                </div>
+                </div> */}
 
                 {/* Submit button */}
                 <button
@@ -238,7 +238,7 @@ function LoginPage() {
               <p className="text-center text-gray-700 text-sm">
                 Don&apos;t have an account?{" "}
                 <Link
-                  href={"/register/hospital"}
+                  href={"/register/doctor"}
                   className="text-green-600 hover:text-green-700 font-medium"
                 >
                   Create account
@@ -265,4 +265,4 @@ function LoginPage() {
   );
 }
 
-export default LoginPage;
+export default DoctorLoginPage;
