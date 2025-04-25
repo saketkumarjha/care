@@ -1,13 +1,10 @@
-import React from 'react'
-import DoctorLoginPage from '@/components/auth/DoctorLoginForm'
-
+"use client";
+import React from "react";
+// import { DoctorAuthProvider } from "@/context/DoctorAuthContext";
+import DoctorLoginPage from "@/components/auth/DoctorLoginForm";
 
 function page() {
-  return (
-    <div>
-      <DoctorLoginPage/>
-    </div>
-  )
+  return <DoctorLoginPage />;
 }
 
-export default page
+export default page;

@@ -1,20 +1,23 @@
 "use client";
 import React, { useState } from "react";
-import { Heart, Eye, EyeOff, Mail, Lock, ArrowLeft} from "lucide-react";
+import { Heart, Eye, EyeOff, Mail, Lock, ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from 'next/navigation';
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { doctorLoginSchema} from "../../lib/validation/DoctorLoginSchema";
+import { doctorLoginSchema } from "../../lib/validation/DoctorLoginSchema";
 import { loginDoctor } from "@/lib/api/doctor";
-// import { useDoctorAuth } from "../../context/DoctorAuthContext";
+// CHANGE: Import the hook instead of the default export
+import { useDoctorAuth } from "../../context/DoctorAuthContext";
 import { DoctorLoginInput } from "../../lib/validation/DoctorLoginSchema";
+
 function DoctorLoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
   const router = useRouter();
-//   const { login } = useDoctorAuth(); // Use our context
+  // CHANGE: Uncomment this line to use the context
+  const { login } = useDoctorAuth(); // Use our context
 
   const {
     register,
@@ -25,7 +28,6 @@ function DoctorLoginPage() {
     defaultValues: {
       email: "",
       password: "",
-      
     },
   });
 
@@ -36,7 +38,6 @@ function DoctorLoginPage() {
 
       console.log("Doctor login attempt with:", {
         email: data.email,
-        
       });
 
       // Call the login API
@@ -59,13 +60,17 @@ function DoctorLoginPage() {
 
       // Store the doctor data in context
       if (loginResponse.data) {
-        // login(loginResponse.data);
+        console.log("i entered in context:");
+        // Add this code after successful login
+        console.log("All cookies:", document.cookie);
+        login(loginResponse.data);
+
+        // router.push("/doctor");
         console.log("Doctor data stored in context:", loginResponse.data);
       }
 
       // Redirect to doctor dashboard
-    //   router.push("/doctor/dashboard");
-      
+      //   router.push("/doctor/dashboard");
     } catch (error) {
       console.error("Login submission error:", error);
       setLoginError(
@@ -191,22 +196,6 @@ function DoctorLoginPage() {
                     </p>
                   )}
                 </div>
-
-                {/* Remember me */}
-                {/* <div className="flex items-center mb-6">
-                  <input
-                    id="rememberMe"
-                    type="checkbox"
-                    className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
-                    {...register("rememberMe")}
-                  />
-                  <label
-                    htmlFor="rememberMe"
-                    className="ml-2 block text-sm text-gray-700"
-                  >
-                    Remember me
-                  </label>
-                </div> */}
 
                 {/* Submit button */}
                 <button

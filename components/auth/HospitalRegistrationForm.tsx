@@ -93,7 +93,11 @@ function RegisterPage() {
     remove(index);
   };
 
-  const handleFacilityChange = (index: number, field: keyof Facility, value: string | number) => {
+  const handleFacilityChange = (
+    index: number,
+    field: keyof Facility,
+    value: string | number
+  ) => {
     const updatedFacilities = [...facilityList];
 
     if (field === "cost") {
@@ -104,9 +108,13 @@ function RegisterPage() {
         [field]: numValue,
       };
       setFacilityList(updatedFacilities);
-      setValue(`facilitiesInHospital.${index}.${field}` as Path<FormDataType>, numValue, {
-        shouldValidate: true,
-      });
+      setValue(
+        `facilitiesInHospital.${index}.${field}` as Path<FormDataType>,
+        numValue,
+        {
+          shouldValidate: true,
+        }
+      );
     } else {
       updatedFacilities[index] = {
         ...updatedFacilities[index],
@@ -168,7 +176,7 @@ function RegisterPage() {
 
   const onSubmit = async (data: FormDataType): Promise<void> => {
     setIsLoading(true);
-  
+
     try {
       // Create the base JSON data object
       const jsonData = {
@@ -190,23 +198,24 @@ function RegisterPage() {
         doctorUnderHospitalID: [],
         adminsInTheHospital: [],
       };
-  
+
       // Handle image conversion outside the main API call flow
       if (data.hospitalImages && data.hospitalImages.length > 0) {
         try {
           // Convert file to base64 string
-          const base64String = await convertFileToBase64(data.hospitalImages[0]);
+          const base64String = await convertFileToBase64(
+            data.hospitalImages[0]
+          );
           jsonData.hospitalImages = [base64String];
         } catch (imageError) {
           console.error("Error converting image:", imageError);
           // Continue with registration even if image fails
         }
       }
-  
       // Now make the API call with the prepared data
       console.log("Submitting hospital data:", jsonData);
       const response = await registerHospital(jsonData);
-      
+
       // Handle the response
       if (response.success) {
         console.log("Registration successful:", response.data);
@@ -224,13 +233,13 @@ function RegisterPage() {
       setIsLoading(false);
     }
   };
-  
+
   // Helper function to convert File to base64
   const convertFileToBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => {
-        const base64String = reader.result?.toString().split(',')[1];
+        const base64String = reader.result?.toString().split(",")[1];
         if (base64String) {
           resolve(base64String);
         } else {

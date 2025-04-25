@@ -4,20 +4,20 @@ import React, { createContext, useContext, useState, ReactNode } from 'react';
 
 // Define the shape of the hospital data
 interface HospitalData {
-  name?: string;
-  username?: string;
-  hospitalAddress?: {
-    addressLine1?: string;
-    addressLine2?: string;
-    addressLine3?: string;
+  name: string;
+  username: string;
+  hospitalAddress: {
+    addressLine1: string;
+    addressLine2: string;
+    addressLine3: string;
   };
-  contactNumberOfHospital?: string;
-  emailOfHospital?: string;
-  licenseNumberOfHospital?: string;
+  contactNumberOfHospital: string;
+  emailOfHospital: string;
+  licenseNumberOfHospital: string;
   ratingOfHospital?: number;
-  isActive?: boolean;
+  isActive: boolean;
   hospitalImages?: string[];
-  facilitiesInHospital?: Array<{
+  facilitiesInHospital: Array<{
     name: string;
     description: string;
     cost: number;
@@ -56,7 +56,7 @@ const HospitalAuthContext = createContext<HospitalAuthContextType | undefined>(u
 export function HospitalAuthProvider({ children }: { children: ReactNode }) {
   const [hospitalData, setHospitalData] = useState<HospitalData | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-
+  
   // Login function
   const login = (data: HospitalData) => {
     setHospitalData(data);
