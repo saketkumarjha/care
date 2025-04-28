@@ -54,9 +54,10 @@ function DoctorLoginPage() {
         console.error("Login failed:", loginResponse.message);
         throw new Error(loginResponse.message);
       }
-
+      console.log("this is login cookie", document.cookie)
       // Log the response data
       console.log("Login response data:", loginResponse.data);
+      
 
       // Store the doctor data in context
       if (loginResponse.data) {
@@ -70,7 +71,7 @@ function DoctorLoginPage() {
       }
 
       // Redirect to doctor dashboard
-      //   router.push("/doctor/dashboard");
+        router.push("/doctor");
     } catch (error) {
       console.error("Login submission error:", error);
       setLoginError(

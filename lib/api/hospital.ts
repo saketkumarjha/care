@@ -85,7 +85,7 @@ export const registerHospital = async (
 ): Promise<ApiResponse> => {
   try {
     console.log("Sending registration data:", JSON.stringify(hospitalData));
-    
+
     const response = await axios.post(
       `${API_BASE_URL}/api/v1/hospital/signup`,
       hospitalData,
@@ -101,16 +101,16 @@ export const registerHospital = async (
     return {
       success: true,
       message: "Hospital registered successfully",
-      data: response.data
+      data: response.data,
     };
   } catch (error) {
     console.error("Registration error full details:", error);
-    
+
     if (axios.isAxiosError(error)) {
       // Log the complete error response for debugging
       console.error("API error response:", error.response?.data);
       console.error("API error status:", error.response?.status);
-      
+
       return {
         success: false,
         message: error.response?.data?.message || "Failed to register hospital",
@@ -184,35 +184,36 @@ export const loginHospital = async (
   try {
     // Create URLSearchParams for the request
     const params = new URLSearchParams();
-    params.append('email', credentials.email);
-    params.append('password', credentials.password);
+    params.append("email", credentials.email);
+    params.append("password", credentials.password);
 
     const response = await axios.post(
       `${API_BASE_URL}/api/v1/hospital/login`,
       params,
       {
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
+          "Content-Type": "application/x-www-form-urlencoded",
         },
+        withCredentials: true,
       }
     );
 
     // Add debug log to see actual response structure
-    console.log('API Raw Response:', response.data.token,response.data);
+    console.log("API Raw Response:", response.data.token, response.data);
 
     // Return the actual response structure
     return {
       success: true,
       message: response.data.message || "Login successful",
-      data: response.data.data || {}
+      data: response.data.data || {},
     };
   } catch (error) {
-    console.error('Login API error:', error);
-    
+    console.error("Login API error:", error);
+
     if (axios.isAxiosError(error)) {
       // Handle Axios errors with more detailed logging
-      console.error('Axios error response:', error.response?.data);
-      
+      console.error("Axios error response:", error.response?.data);
+
       // Extract error message from HTML response if needed
       let errorMessage = "Login failed";
       if (error.response?.data) {
@@ -222,7 +223,7 @@ export const loginHospital = async (
           errorMessage = match[1];
         }
       }
-      
+
       return {
         success: false,
         message: errorMessage,
@@ -239,10 +240,10 @@ export const loginHospital = async (
   }
 };
 /**
- * 
+ *
  * @param hospitalId - The ID of the hospital to retrieve
- * @param token 
- * @returns 
+ * @param token
+ * @returns
  */
 export const getHospitalById = async (
   hospitalId: string,

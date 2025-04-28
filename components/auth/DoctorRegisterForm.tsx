@@ -1,5 +1,5 @@
-"use client"
-import React, { useState} from "react";
+"use client";
+import React, { useState } from "react";
 import { z } from "zod";
 import { doctorSchema } from "../../lib/validation/DoctorRegisterSchema"; // Import your existing schema
 import { registerDoctor, convertFileToBase64 } from "../../lib/api/doctor"; // Import your API functions
@@ -43,7 +43,7 @@ type DoctorFormData = {
   }[];
   hospitalJoined: {
     hospitalId: string;
-    status:string;
+    status: string;
     whenJoined: string;
     whenLeft: string | null;
     isJoined: boolean;
@@ -62,12 +62,14 @@ const DoctorRegistrationForm: React.FC = () => {
     yearsOfExperience: 0,
     consultationFee: 0,
     averageConsultationTime: 0,
-    locationsOfDoctor: [{
-      addressline1: "",
-      addressLine2: "",
-      addressLine3: "",
-      isPrimaryLocation: true,
-    }],
+    locationsOfDoctor: [
+      {
+        addressline1: "",
+        addressLine2: "",
+        addressLine3: "",
+        isPrimaryLocation: true,
+      },
+    ],
     timeSlots: [],
     hospitalJoined: [],
   });
@@ -314,7 +316,7 @@ const DoctorRegistrationForm: React.FC = () => {
         ...prev.hospitalJoined,
         {
           hospitalId: "",
-            status: "",
+          status: "",
           whenJoined: "",
           whenLeft: null,
           isJoined: true,
@@ -371,11 +373,16 @@ const DoctorRegistrationForm: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     console.log("Form data before submission:", formData);
+
     if (validateForm()) {
       setIsSubmitting(true);
-      setSubmitError(errors ? "Please fix the errors" : "");    
+      setSubmitError(
+        errors
+          ? "Please fix the errors"
+          : "something is necessary to be filled go back"
+      );
       console.log("validation success", formData);
-    
+
       try {
         // Convert image to base64 if exists
         let base64Image = undefined;
@@ -409,6 +416,7 @@ const DoctorRegistrationForm: React.FC = () => {
 
   // Get error for a field
   const getFieldError = (fieldName: string) => {
+    
     return errors[fieldName] ? errors[fieldName][0] : "";
   };
 
@@ -665,7 +673,7 @@ const DoctorRegistrationForm: React.FC = () => {
                     htmlFor="averageConsultationTime"
                     className={labelClass}
                   >
-                    Average Consultation Time (minutes)
+                    Average Consultation Time ( minutes)
                   </label>
                   <input
                     type="number"
@@ -674,7 +682,7 @@ const DoctorRegistrationForm: React.FC = () => {
                     value={formData.averageConsultationTime}
                     onChange={handleChange}
                     className={inputClass}
-                    min="1"
+                    min="5"
                   />
                   {getFieldError("averageConsultationTime") && (
                     <p className={errorClass}>

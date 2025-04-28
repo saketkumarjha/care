@@ -33,6 +33,8 @@ interface DoctorData {
       }>;
     }>;
   }>;
+  refreshToken?:string;
+  _id?:string;
   hospitalJoined?: Array<{
     hospitalId: string;
     status: string;
@@ -40,6 +42,7 @@ interface DoctorData {
     whenLeft: string | null;
     isJoined: boolean;
   }>;
+  doctorAvatarURL?: string;
 }
 
 // Define the shape of our context
@@ -111,5 +114,5 @@ export function useDoctorAuth() {
   return context;
 }
 
-export { DoctorAuthProvider };  // Added export for the provider
+export { DoctorAuthProvider };  
 export default DoctorAuthContext;

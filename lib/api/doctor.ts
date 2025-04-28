@@ -54,6 +54,7 @@ export interface DoctorData {
   timeSlots: DaySlot[];
   hospitalJoined?: HospitalJoined[];
   doctorImage?: string; // Base64 string for API submission
+  refreshToken?: string;
 }
 
 // Define the response interface
@@ -309,6 +310,175 @@ export const loginDoctor = async (
       console.error("Axios error response:", error.response?.data);
 
       let errorMessage = "Login failed";
+      if (error.response?.data) {
+        if (typeof error.response.data === "string") {
+          const match = error.response.data.match(/Error: (.*?)<br>/);
+          if (match && match[1]) {
+            errorMessage = match[1];
+          }
+        } else if (error.response.data.message) {
+          errorMessage = error.response.data.message;
+        }
+      }
+
+      return {
+        success: false,
+        message: errorMessage,
+        error: error.response?.data || error.message,
+      };
+    }
+
+    return {
+      success: false,
+      message: "An unexpected error occurred",
+      error: String(error),
+    };
+  }
+};
+
+/**
+ * Update a doctor's profile information
+ * @param doctorData - The updated doctor data
+ * @returns Promise with the API response
+ */
+export const updateDoctorProfile = async (doctorData: DoctorData) => {
+  try {
+    // Create the payload with required structure
+    const payload = {
+      username: doctorData.username,
+      name: doctorData.name,
+      email: doctorData.email,
+      password: doctorData.password,
+      specialization: doctorData.specialization,
+      licenseNumber: doctorData.licenseNumber,
+      yearsOfExperience: doctorData.yearsOfExperience,
+      consultationFee: doctorData.consultationFee,
+      averageConsultationTime: doctorData.averageConsultationTime,
+      locationsOfDoctor: doctorData.locationsOfDoctor || [],
+      timeSlots: doctorData.timeSlots || [],
+      hospitalJoined: doctorData.hospitalJoined || [],
+    };
+
+    console.log("Sending doctor update data", JSON.stringify(payload));
+
+    // Debug log for the URL
+    console.log(
+      "Request URL:",
+      `${API_BASE_URL}/api/v1/doctor/updateDoctorProfile`
+    );
+
+    // Debug log for headers
+    console.log("Request headers:", {
+      "Content-Type": "application/json",
+    });
+
+    const response = await axios({
+      method: "PATCH",
+      url: `${API_BASE_URL}/api/v1/doctor/updateDoctorProfile`,
+      data: payload,
+      headers: {
+        "Content-Type": "application/json", // Fixed content type
+      },
+      withCredentials: true, // This ensures cookies (including HttpOnly cookies) are sent with the request
+    });
+
+    console.log("Update response:", response);
+
+    return {
+      success: true,
+      message: "Doctor profile updated successfully",
+      data: response.data,
+    };
+  } catch (error) {
+    console.error("Profile update error occurred");
+
+    if (axios.isAxiosError(error)) {
+      // Log the complete error response for debugging
+      console.error("API error status:", error.response?.status);
+      console.error("API error response:", error.response?.data);
+      console.error("API error config:", {
+        url: error.config?.url,
+        method: error.config?.method,
+        headers: error.config?.headers,
+      });
+
+      let errorMessage = "Failed to update doctor profile";
+      if (error.response?.data) {
+        if (typeof error.response.data === "string") {
+          // Try to extract error from HTML response
+          const match = error.response.data.match(/Error: (.*?)<br>/);
+          if (match && match[1]) {
+            errorMessage = match[1];
+          } else {
+            errorMessage = error.response.data.substring(0, 200); // Truncate long HTML
+          }
+        } else if (error.response.data.message) {
+          errorMessage = error.response.data.message;
+        } else if (error.response.data.error) {
+          errorMessage =
+            typeof error.response.data.error === "string"
+              ? error.response.data.error
+              : JSON.stringify(error.response.data.error);
+        }
+      }
+
+      return {
+        success: false,
+        message: errorMessage,
+        error: error.response?.data || error.message,
+      };
+    }
+
+    return {
+      success: false,
+      message: "An unexpected error occurred",
+      error: String(error),
+    };
+  }
+};
+
+/**
+ * Update a doctor's avatar/profile picture
+ * @param doctorData - The doctor data including ID and token
+ * @param imageData - The base64 encoded image data
+ * @returns Promise with the API response
+ */
+export const updateDoctorAvatar = async (
+  doctorData: DoctorData,
+  imageData: string
+) => {
+  try {
+    const payload = {
+      doctorImage: imageData,
+    };
+
+    console.log("Sending avatar update request");
+
+    const response = await axios({
+      method: "put",
+      url: `${API_BASE_URL}/api/v1/doctor/updateDoctorAvatar`,
+      data: payload,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${doctorData.refreshToken}`,
+      },
+    });
+
+    console.log("Avatar update response:", response);
+
+    return {
+      success: true,
+      message: "Doctor avatar updated successfully",
+      data: response.data,
+    };
+  } catch (error) {
+    console.error("Avatar update error occurred");
+
+    if (axios.isAxiosError(error)) {
+      console.error("API error status:", error.response?.status);
+      console.error("API error response:", error.response?.data);
+
+      let errorMessage = "Failed to update avatar";
       if (error.response?.data) {
         if (typeof error.response.data === "string") {
           const match = error.response.data.match(/Error: (.*?)<br>/);
