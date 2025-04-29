@@ -1,27 +1,11 @@
 "use client";
 import React, { useState, useRef } from "react";
-import {
-  Building2,
-  User,
-  Lock,
-  MapPin,
-  Phone,
-  Mail,
-  FileText,
-  Star,
-  Plus,
-  Trash2,
-  ArrowLeft,
-  Eye,
-  EyeOff,
-  Upload,
-} from "lucide-react";
+import { Eye, EyeOff, Upload } from "lucide-react";
 import Link from "next/link";
-import { useForm, useFieldArray } from "react-hook-form";
+import { useForm, useFieldArray, FieldError } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { hospitalSchema } from "../../lib/validation/hospitalSchema";
 import { registerHospital } from "@/lib/api/hospital";
-// import {useHospitalAuth} from "@/context/HospitalAuthContext";
 import { useRouter } from "next/navigation";
 
 function RegisterPage() {
@@ -32,9 +16,14 @@ function RegisterPage() {
   ]);
   const [selectedImageName, setSelectedImageName] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
-  // const { registerHospital } = useHospitalAuth(); // Use our context
-  const router = useRouter(); // Use Next.js router for navigation
-  // const [isSubmitting, setIsSubmitting] = useState(false);
+  const router = useRouter();
+  const [currentStep, setCurrentStep] = useState(1);
+  const [notification, setNotification] = useState({
+    show: false,
+    message: "",
+    type: "",
+  });
+
   const {
     register,
     handleSubmit,
@@ -71,6 +60,14 @@ function RegisterPage() {
     name: "facilitiesInHospital",
   });
 
+  // Custom notification function
+  const showNotificationMessage = (message: string, type = "error") => {
+    setNotification({ show: true, message, type });
+    setTimeout(() => {
+      setNotification({ show: false, message: "", type: "" });
+    }, 3000);
+  };
+
   const addFacility = () => {
     setFacilityList([
       ...facilityList,
@@ -87,16 +84,20 @@ function RegisterPage() {
   }
 
   const removeFacility = (index: number): void => {
-    const updatedFacilities: Facility[] = [...facilityList];
-    updatedFacilities.splice(index, 1);
-    setFacilityList(updatedFacilities);
-    remove(index);
+    if (facilityList.length > 1) {
+      const updatedFacilities: Facility[] = [...facilityList];
+      updatedFacilities.splice(index, 1);
+      setFacilityList(updatedFacilities);
+      remove(index);
+    } else {
+      showNotificationMessage("You must have at least one facility");
+    }
   };
 
   const handleFacilityChange = (
     index: number,
     field: keyof Facility,
-    value: string | number
+    value: string | number | boolean
   ) => {
     const updatedFacilities = [...facilityList];
 
@@ -108,20 +109,16 @@ function RegisterPage() {
         [field]: numValue,
       };
       setFacilityList(updatedFacilities);
-      setValue(
-        `facilitiesInHospital.${index}.${field}` as Path<FormDataType>,
-        numValue,
-        {
-          shouldValidate: true,
-        }
-      );
+      setValue(`facilitiesInHospital.${index}.${field}` as `facilitiesInHospital.${number}.${keyof Facility}`, numValue, {
+        shouldValidate: true,
+      });
     } else {
       updatedFacilities[index] = {
         ...updatedFacilities[index],
         [field]: value,
       };
       setFacilityList(updatedFacilities);
-      setValue(`facilitiesInHospital.${index}.${field}` as any, value, {
+      setValue(`facilitiesInHospital.${index}.${field}` as `facilitiesInHospital.${number}.${keyof Facility}`, value, {
         shouldValidate: true,
       });
     }
@@ -141,10 +138,44 @@ function RegisterPage() {
     }
   };
 
-  const triggerFileInput = () => {
-    if (fileInputRef.current) {
-      fileInputRef.current.click();
+  const handleNextStep = () => {
+    // Validate current step before proceeding
+    let valid = true;
+
+    if (currentStep === 1) {
+      // Basic info validation would happen via React Hook Form
+      if (
+        errors.name ||
+        errors.username ||
+        errors.password ||
+        errors.hospitalAddress?.addressLine1 ||
+        errors.hospitalAddress?.addressLine2 ||
+        errors.hospitalAddress?.addressLine3
+      ) {
+        showNotificationMessage("Please fill all required fields correctly");
+        valid = false;
+      }
     }
+
+    if (currentStep === 2) {
+      // Contact info validation
+      if (
+        errors.contactNumberOfHospital ||
+        errors.emailOfHospital ||
+        errors.licenseNumberOfHospital
+      ) {
+        showNotificationMessage("Please fill all required fields correctly");
+        valid = false;
+      }
+    }
+
+    if (valid) {
+      setCurrentStep((prev) => prev + 1);
+    }
+  };
+
+  const handlePrevStep = () => {
+    setCurrentStep((prev) => prev - 1);
   };
 
   interface FormDataType {
@@ -167,12 +198,6 @@ function RegisterPage() {
     }[];
     hospitalImages: File[];
   }
-
-  // interface RegisterResponse {
-  //   success: boolean;
-  //   data?: any;
-  //   message?: string;
-  // }
 
   const onSubmit = async (data: FormDataType): Promise<void> => {
     setIsLoading(true);
@@ -219,16 +244,20 @@ function RegisterPage() {
       // Handle the response
       if (response.success) {
         console.log("Registration successful:", response.data);
-        alert("Hospital registered successfully!"); // Replace with proper UI feedback
+        showNotificationMessage("Hospital registered successfully!", "success");
         // Redirect to login or dashboard
-        router.push("/login/hospital"); // Adjust the path as needed
+        setTimeout(() => {
+          router.push("/login/hospital"); // Adjust the path as needed
+        }, 2000);
       } else {
         console.error("Registration failed:", response.message, response.error);
-        alert(`Registration failed: ${response.message}`); // Replace with proper UI feedback
+        showNotificationMessage(`Registration failed: ${response.message}`);
       }
     } catch (error) {
       console.error("Form submission error:", error);
-      alert("An unexpected error occurred. Please try again.");
+      showNotificationMessage(
+        "An unexpected error occurred. Please try again."
+      );
     } finally {
       setIsLoading(false);
     }
@@ -251,365 +280,280 @@ function RegisterPage() {
     });
   };
 
-  // Helper function to handle the response
-  // const handleResponse = (response: RegisterResponse) => {
-  //   if (response.success) {
-  //     // Handle successful registration
-  //     console.log("Registration successful:", response.data);
-  //     // You can add toast notification or redirect here
-  //     // For example: router.push('/login');
-  //   } else {
-  //     // Handle registration failure
-  //     console.error("Registration failed:", response.message);
-  //     // You can add error toast notification here
-  //   }
-  //   setIsLoading(false);
-  // };
-
   return (
-    <div className="min-h-screen bg-gradient-to-r from-green-50 to-white flex flex-col">
-      {/* Main Content */}
-      <main className="flex-grow container mx-auto px-4 py-8">
-        {/* Back button */}
-        <Link
-          href={"/"}
-          className="inline-flex items-center text-green-600 hover:text-green-700 mb-6 transition-colors"
+    <div className="min-h-screen bg-gradient-to-b from-emerald-50 to-white flex items-center justify-center py-8 px-4">
+      {notification.show && (
+        <div
+          className={`fixed top-4 right-4 p-4 rounded-md shadow-lg z-50 ${
+            notification.type === "success" ? "bg-green-500" : "bg-red-500"
+          } text-white`}
         >
-          <ArrowLeft className="h-4 w-4 mr-1" />
-          Back to homepage
-        </Link>
+          {notification.message}
+        </div>
+      )}
 
-        <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-lg overflow-hidden">
-          {/* Card Header */}
-          <div className="bg-green-600 px-6 py-4">
-            <h1 className="text-white text-xl font-bold">
+      <div className="w-full max-w-3xl bg-white rounded-xl shadow-lg overflow-hidden">
+        <div className="p-6">
+          <div className="text-center mb-6">
+            <h2 className="text-2xl font-bold text-gray-800">
               Hospital Registration
-            </h1>
-            <p className="text-green-100 text-sm">
-              Create your hospital account
+            </h2>
+            <p className="text-gray-600 mt-1">
+              Join Care Setu&apos;s healthcare network
             </p>
           </div>
 
-          {/* Card Body */}
-          <div className="p-6">
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-              {/* Basic Information */}
-              <div>
-                <h2 className="text-lg font-medium text-gray-800 mb-4 pb-2 border-b border-gray-200">
-                  Basic Information
-                </h2>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  {/* Hospital Name */}
-                  <div>
-                    <label
-                      className="block text-sm font-medium text-gray-700 mb-1"
-                      htmlFor="name"
-                    >
-                      Hospital Name <span className="text-red-500">*</span>
-                    </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <Building2 className="h-5 w-5 text-gray-400" />
-                      </div>
-                      <input
-                        id="name"
-                        {...register("name")}
-                        className={`w-full pl-10 pr-3 py-2 border ${
-                          errors.name ? "border-red-500" : "border-gray-300"
-                        } rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500`}
-                        placeholder="Enter hospital name"
-                      />
-                    </div>
-                    {errors.name && (
-                      <p className="mt-1 text-xs text-red-500">
-                        {errors.name.message}
-                      </p>
-                    )}
+          {/* Step Indicator */}
+          <div className="mb-8">
+            <div className="flex items-center justify-between">
+              {[1, 2, 3].map((step) => (
+                <div key={step} className="flex flex-col items-center">
+                  <div
+                    className={`w-10 h-10 rounded-full flex items-center justify-center border-2 ${
+                      currentStep >= step
+                        ? "border-emerald-500 bg-emerald-500 text-white"
+                        : "border-gray-300 text-gray-500"
+                    }`}
+                  >
+                    {step}
                   </div>
-
-                  {/* Username */}
-                  <div>
-                    <label
-                      className="block text-sm font-medium text-gray-700 mb-1"
-                      htmlFor="username"
-                    >
-                      Username <span className="text-red-500">*</span>
-                    </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <User className="h-5 w-5 text-gray-400" />
-                      </div>
-                      <input
-                        id="username"
-                        {...register("username")}
-                        className={`w-full pl-10 pr-3 py-2 border ${
-                          errors.username ? "border-red-500" : "border-gray-300"
-                        } rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500`}
-                        placeholder="Choose a username"
-                      />
-                    </div>
-                    {errors.username && (
-                      <p className="mt-1 text-xs text-red-500">
-                        {errors.username.message}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Password */}
-                  <div>
-                    <label
-                      className="block text-sm font-medium text-gray-700 mb-1"
-                      htmlFor="password"
-                    >
-                      Password <span className="text-red-500">*</span>
-                    </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <Lock className="h-5 w-5 text-gray-400" />
-                      </div>
-                      <input
-                        id="password"
-                        {...register("password")}
-                        type={showPassword ? "text" : "password"}
-                        className={`w-full pl-10 pr-10 py-2 border ${
-                          errors.password ? "border-red-500" : "border-gray-300"
-                        } rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500`}
-                        placeholder="Create a password"
-                      />
-                      <button
-                        type="button"
-                        className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                        onClick={() => setShowPassword(!showPassword)}
-                      >
-                        {showPassword ? (
-                          <EyeOff className="h-5 w-5 text-gray-400 hover:text-gray-600" />
-                        ) : (
-                          <Eye className="h-5 w-5 text-gray-400 hover:text-gray-600" />
-                        )}
-                      </button>
-                    </div>
-                    {errors.password && (
-                      <p className="mt-1 text-xs text-red-500">
-                        {errors.password.message}
-                      </p>
-                    )}
-                    <p className="mt-1 text-xs text-gray-500">
-                      Password must be at least 8 characters with uppercase,
-                      lowercase, number, and special character.
-                    </p>
-                  </div>
-
-                  {/* License Number */}
-                  <div>
-                    <label
-                      className="block text-sm font-medium text-gray-700 mb-1"
-                      htmlFor="licenseNumberOfHospital"
-                    >
-                      License Number <span className="text-red-500">*</span>
-                    </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <FileText className="h-5 w-5 text-gray-400" />
-                      </div>
-                      <input
-                        id="licenseNumberOfHospital"
-                        {...register("licenseNumberOfHospital")}
-                        className={`w-full pl-10 pr-3 py-2 border ${
-                          errors.licenseNumberOfHospital
-                            ? "border-red-500"
-                            : "border-gray-300"
-                        } rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500`}
-                        placeholder="Enter license number"
-                      />
-                    </div>
-                    {errors.licenseNumberOfHospital && (
-                      <p className="mt-1 text-xs text-red-500">
-                        {errors.licenseNumberOfHospital.message}
-                      </p>
-                    )}
-                  </div>
+                  <span className="text-xs mt-1">
+                    {step === 1
+                      ? "Basic Info"
+                      : step === 2
+                      ? "Contact Details"
+                      : "Facilities"}
+                  </span>
                 </div>
-              </div>
+              ))}
+            </div>
+            <div className="relative mt-2">
+              <div className="absolute top-0 left-0 h-1 bg-gray-200 w-full"></div>
+              <div
+                className="absolute top-0 left-0 h-1 bg-emerald-500 transition-all duration-300"
+                style={{ width: `${((currentStep - 1) / 2) * 100}%` }}
+              ></div>
+            </div>
+          </div>
 
-              {/* Address Information */}
-              <div>
-                <h2 className="text-lg font-medium text-gray-800 mb-4 pb-2 border-b border-gray-200">
-                  Address Information
-                </h2>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  {/* Address Line 1 */}
+          <form onSubmit={handleSubmit(onSubmit)}>
+            {/* Step 1: Basic Info */}
+            {currentStep === 1 && (
+              <div className="space-y-4">
+                <div>
+                  <label
+                    htmlFor="name"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
+                    Hospital Name *
+                  </label>
+                  <input
+                    id="name"
+                    {...register("name")}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                    placeholder="Care Setu Hospital"
+                  />
+                  {errors.name && (
+                    <p className="mt-1 text-xs text-red-500">
+                      {errors.name.message as string}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="username"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
+                    Username *
+                  </label>
+                  <input
+                    id="username"
+                    {...register("username")}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                    placeholder="caresetu_hospital"
+                  />
+                  {errors.username && (
+                    <p className="mt-1 text-xs text-red-500">
+                      {errors.username.message as string}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="password"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
+                    Password *
+                  </label>
+                  <div className="relative">
+                    <input
+                      id="password"
+                      {...register("password")}
+                      type={showPassword ? "text" : "password"}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                      placeholder="••••••••"
+                    />
+                    <button
+                      type="button"
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-5 w-5 text-gray-500" />
+                      ) : (
+                        <Eye className="h-5 w-5 text-gray-500" />
+                      )}
+                    </button>
+                  </div>
+                  {errors.password && (
+                    <p className="mt-1 text-xs text-red-500">
+                      {errors.password.message as string}
+                    </p>
+                  )}
+                  <p className="mt-1 text-xs text-gray-500">
+                    Password must be at least 8 characters with uppercase,
+                    lowercase, numbers, and special characters
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <label
+                      htmlFor="addressLine1"
                       className="block text-sm font-medium text-gray-700 mb-1"
-                      htmlFor="hospitalAddress.addressLine1"
                     >
-                      Address Line 1 <span className="text-red-500">*</span>
+                      Address Line 1 *
                     </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <MapPin className="h-5 w-5 text-gray-400" />
-                      </div>
-                      <input
-                        id="hospitalAddress.addressLine1"
-                        {...register("hospitalAddress.addressLine1")}
-                        className={`w-full pl-10 pr-3 py-2 border ${
-                          errors.hospitalAddress?.addressLine1
-                            ? "border-red-500"
-                            : "border-gray-300"
-                        } rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500`}
-                        placeholder="Enter address line 1"
-                      />
-                    </div>
+                    <input
+                      id="addressLine1"
+                      {...register("hospitalAddress.addressLine1")}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                      placeholder="Street Address"
+                    />
                     {errors.hospitalAddress?.addressLine1 && (
                       <p className="mt-1 text-xs text-red-500">
-                        {errors.hospitalAddress.addressLine1.message}
+                        {errors.hospitalAddress.addressLine1.message as string}
                       </p>
                     )}
                   </div>
 
-                  {/* Address Line 2 */}
                   <div>
                     <label
+                      htmlFor="addressLine2"
                       className="block text-sm font-medium text-gray-700 mb-1"
-                      htmlFor="hospitalAddress.addressLine2"
                     >
-                      Address Line 2
+                      Address Line 2 *
                     </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <MapPin className="h-5 w-5 text-gray-400" />
-                      </div>
-                      <input
-                        id="hospitalAddress.addressLine2"
-                        {...register("hospitalAddress.addressLine2")}
-                        className={`w-full pl-10 pr-3 py-2 border ${
-                          errors.hospitalAddress?.addressLine2
-                            ? "border-red-500"
-                            : "border-gray-300"
-                        } rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500`}
-                        placeholder="Enter address line 2"
-                      />
-                    </div>
+                    <input
+                      id="addressLine2"
+                      {...register("hospitalAddress.addressLine2")}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                      placeholder="Area, Locality"
+                    />
                     {errors.hospitalAddress?.addressLine2 && (
                       <p className="mt-1 text-xs text-red-500">
-                        {errors.hospitalAddress.addressLine2.message}
+                        {errors.hospitalAddress.addressLine2.message as string}
                       </p>
                     )}
                   </div>
 
-                  {/* Address Line 3 */}
                   <div>
                     <label
+                      htmlFor="addressLine3"
                       className="block text-sm font-medium text-gray-700 mb-1"
-                      htmlFor="hospitalAddress.addressLine3"
                     >
-                      Address Line 3
+                      Address Line 3 *
                     </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <MapPin className="h-5 w-5 text-gray-400" />
-                      </div>
-                      <input
-                        id="hospitalAddress.addressLine3"
-                        {...register("hospitalAddress.addressLine3")}
-                        className={`w-full pl-10 pr-3 py-2 border ${
-                          errors.hospitalAddress?.addressLine3
-                            ? "border-red-500"
-                            : "border-gray-300"
-                        } rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500`}
-                        placeholder="Enter address line 3"
-                      />
-                    </div>
+                    <input
+                      id="addressLine3"
+                      {...register("hospitalAddress.addressLine3")}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                      placeholder="City, State, Zip"
+                    />
                     {errors.hospitalAddress?.addressLine3 && (
                       <p className="mt-1 text-xs text-red-500">
-                        {errors.hospitalAddress.addressLine3.message}
+                        {errors.hospitalAddress.addressLine3.message as string}
                       </p>
                     )}
                   </div>
                 </div>
               </div>
+            )}
 
-              {/* Contact Information */}
-              <div>
-                <h2 className="text-lg font-medium text-gray-800 mb-4 pb-2 border-b border-gray-200">
-                  Contact Information
-                </h2>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  {/* Email */}
-                  <div>
-                    <label
-                      className="block text-sm font-medium text-gray-700 mb-1"
-                      htmlFor="emailOfHospital"
-                    >
-                      Email <span className="text-red-500">*</span>
-                    </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <Mail className="h-5 w-5 text-gray-400" />
-                      </div>
-                      <input
-                        id="emailOfHospital"
-                        {...register("emailOfHospital")}
-                        type="email"
-                        className={`w-full pl-10 pr-3 py-2 border ${
-                          errors.emailOfHospital
-                            ? "border-red-500"
-                            : "border-gray-300"
-                        } rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500`}
-                        placeholder="Enter email address"
-                      />
-                    </div>
-                    {errors.emailOfHospital && (
-                      <p className="mt-1 text-xs text-red-500">
-                        {errors.emailOfHospital.message}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Phone */}
-                  <div>
-                    <label
-                      className="block text-sm font-medium text-gray-700 mb-1"
-                      htmlFor="contactNumberOfHospital"
-                    >
-                      Phone <span className="text-red-500">*</span>
-                    </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <Phone className="h-5 w-5 text-gray-400" />
-                      </div>
-                      <input
-                        id="contactNumberOfHospital"
-                        {...register("contactNumberOfHospital")}
-                        type="tel"
-                        className={`w-full pl-10 pr-3 py-2 border ${
-                          errors.contactNumberOfHospital
-                            ? "border-red-500"
-                            : "border-gray-300"
-                        } rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500`}
-                        placeholder="Enter phone number"
-                      />
-                    </div>
-                    {errors.contactNumberOfHospital && (
-                      <p className="mt-1 text-xs text-red-500">
-                        {errors.contactNumberOfHospital.message}
-                      </p>
-                    )}
-                  </div>
+            {/* Step 2: Contact Details */}
+            {currentStep === 2 && (
+              <div className="space-y-4">
+                <div>
+                  <label
+                    htmlFor="contactNumberOfHospital"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
+                    Contact Number *
+                  </label>
+                  <input
+                    id="contactNumberOfHospital"
+                    {...register("contactNumberOfHospital")}
+                    type="tel"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                    placeholder="10-digit phone number"
+                  />
+                  {errors.contactNumberOfHospital && (
+                    <p className="mt-1 text-xs text-red-500">
+                      {errors.contactNumberOfHospital.message as string}
+                    </p>
+                  )}
                 </div>
-              </div>
 
-              {/* Hospital Image - Changed to File Upload */}
-              <div>
-                <h2 className="text-lg font-medium text-gray-800 mb-4 pb-2 border-b border-gray-200">
-                  Hospital Image (Optional)
-                </h2>
+                <div>
+                  <label
+                    htmlFor="emailOfHospital"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
+                    Email Address *
+                  </label>
+                  <input
+                    id="emailOfHospital"
+                    {...register("emailOfHospital")}
+                    type="email"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                    placeholder="hospital@example.com"
+                  />
+                  {errors.emailOfHospital && (
+                    <p className="mt-1 text-xs text-red-500">
+                      {errors.emailOfHospital.message as string}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="licenseNumberOfHospital"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
+                    License Number *
+                  </label>
+                  <input
+                    id="licenseNumberOfHospital"
+                    {...register("licenseNumberOfHospital")}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                    placeholder="Hospital License Number"
+                  />
+                  {errors.licenseNumberOfHospital && (
+                    <p className="mt-1 text-xs text-red-500">
+                      {errors.licenseNumberOfHospital.message as string}
+                    </p>
+                  )}
+                </div>
+
+                {/* Hospital Image Upload */}
                 <div>
                   <label
                     className="block text-sm font-medium text-gray-700 mb-1"
                     htmlFor="hospitalImages"
                   >
-                    Upload Hospital Image
+                    Hospital Image (Optional)
                   </label>
                   <input
                     type="file"
@@ -622,8 +566,8 @@ function RegisterPage() {
                   <div className="mt-1 flex items-center">
                     <button
                       type="button"
-                      onClick={triggerFileInput}
-                      className="px-4 py-2 bg-white border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 flex items-center"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="px-4 py-2 bg-white border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 flex items-center"
                     >
                       <Upload className="h-5 w-5 mr-2 text-gray-400" />
                       Choose File
@@ -636,99 +580,110 @@ function RegisterPage() {
                   </div>
                   {errors.hospitalImages && (
                     <p className="mt-1 text-xs text-red-500">
-                      {errors.hospitalImages.message}
+                      {errors.hospitalImages.message as string}
                     </p>
                   )}
                 </div>
               </div>
+            )}
 
-              {/* Facilities */}
-              <div>
-                <div className="flex items-center justify-between mb-4 pb-2 border-b border-gray-200">
-                  <h2 className="text-lg font-medium text-gray-800">
-                    Facilities
-                  </h2>
+            {/* Step 3: Facilities */}
+            {currentStep === 3 && (
+              <div className="space-y-6">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-lg font-semibold text-gray-800">
+                    Hospital Facilities
+                  </h3>
                   <button
                     type="button"
                     onClick={addFacility}
-                    className="inline-flex items-center px-3 py-1 bg-green-100 border border-transparent text-sm font-medium rounded-md text-green-700 hover:bg-green-200 transition-colors"
+                    className="px-4 py-2 bg-emerald-500 text-white rounded-md hover:bg-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
                   >
-                    <Plus className="h-4 w-4 mr-1" />
                     Add Facility
                   </button>
                 </div>
 
-                {errors.facilitiesInHospital &&
-                  typeof errors.facilitiesInHospital.message === "string" && (
-                    <p className="mt-1 mb-3 text-sm text-red-500">
-                      {errors.facilitiesInHospital.message}
-                    </p>
-                  )}
+                {errors.facilitiesInHospital && (
+                  <p className="mt-1 text-xs text-red-500">
+                    {(errors.facilitiesInHospital as { message?: string })?.message || ""}
+                  </p>
+                )}
 
                 {facilityList.map((facility, index) => (
                   <div
                     key={index}
-                    className="p-4 border border-gray-200 rounded-md mb-4"
+                    className="p-4 border border-gray-200 rounded-lg space-y-3"
                   >
-                    <div className="flex justify-between items-center mb-3">
-                      <h3 className="text-md font-medium text-gray-800">
-                        Facility {index + 1}
-                      </h3>
-                      {index > 0 && (
+                    <div className="flex justify-between items-center">
+                      <h4 className="font-medium text-gray-700">
+                        Facility #{index + 1}
+                      </h4>
+                      {facilityList.length > 1 && (
                         <button
                           type="button"
                           onClick={() => removeFacility(index)}
-                          className="inline-flex items-center text-red-600 hover:text-red-800"
+                          className="text-red-500 hover:text-red-700"
                         >
-                          <Trash2 className="h-4 w-4 mr-1" />
                           Remove
                         </button>
                       )}
                     </div>
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                      {/* Facility Name */}
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label
-                          className="block text-sm font-medium text-gray-700 mb-1"
-                          htmlFor={`facility-${index}-name`}
-                        >
-                          Facility Name <span className="text-red-500">*</span>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Facility Name *
                         </label>
                         <input
-                          id={`facility-${index}-name`}
-                          name={`facility-${index}-name`}
                           type="text"
-                          value={facility.name || ""}
+                          value={facility.name}
                           onChange={(e) =>
                             handleFacilityChange(index, "name", e.target.value)
                           }
-                          className={`w-full px-3 py-2 border ${
-                            errors.facilitiesInHospital?.[index]?.name
-                              ? "border-red-500"
-                              : "border-gray-300"
-                          } rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500`}
-                          placeholder="Enter facility name"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                          placeholder="e.g., X-Ray, MRI, ICU"
                         />
                         {errors.facilitiesInHospital?.[index]?.name && (
                           <p className="mt-1 text-xs text-red-500">
-                            {errors.facilitiesInHospital[index].name.message}
+                            {
+                              (errors.facilitiesInHospital?.[index]?.name?.message as string)
+                            }
                           </p>
                         )}
                       </div>
 
-                      {/* Facility Description */}
                       <div>
-                        <label
-                          className="block text-sm font-medium text-gray-700 mb-1"
-                          htmlFor={`facility-${index}-description`}
-                        >
-                          Description <span className="text-red-500">*</span>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Cost (INR) *
                         </label>
                         <input
-                          id={`facility-${index}-description`}
-                          name={`facility-${index}-description`}
-                          type="text"
-                          value={facility.description || ""}
+                          type="number"
+                          min="0"
+                          value={facility.cost}
+                          onChange={(e) =>
+                            handleFacilityChange(index, "cost", e.target.value)
+                          }
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                          placeholder="Enter cost in INR"
+                        />
+                        {errors.facilitiesInHospital?.[index]?.cost && (
+                          <p className="mt-1 text-xs text-red-500">
+                            {
+                              (errors.facilitiesInHospital[index]?.cost?.message as string)
+                                
+                            }
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Description
+                        </label>
+                        <textarea
+                          value={facility.description}
                           onChange={(e) =>
                             handleFacilityChange(
                               index,
@@ -736,128 +691,96 @@ function RegisterPage() {
                               e.target.value
                             )
                           }
-                          className={`w-full px-3 py-2 border ${
-                            errors.facilitiesInHospital?.[index]?.description
-                              ? "border-red-500"
-                              : "border-gray-300"
-                          } rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500`}
-                          placeholder="Enter facility description"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                          placeholder="Description of the facility"
+                          rows={2}
                         />
                         {errors.facilitiesInHospital?.[index]?.description && (
                           <p className="mt-1 text-xs text-red-500">
                             {
-                              errors.facilitiesInHospital[index].description
-                                .message
+                              (
+                                errors.facilitiesInHospital[index]
+                                  .description as FieldError
+                              ).message
                             }
                           </p>
                         )}
                       </div>
 
-                      {/* Facility Cost - Improved to ensure number input */}
                       <div>
-                        <label
-                          className="block text-sm font-medium text-gray-700 mb-1"
-                          htmlFor={`facility-${index}-cost`}
-                        >
-                          Cost (₹) <span className="text-red-500">*</span>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Availability Status
                         </label>
-                        <div className="relative">
-                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <Star className="h-5 w-5 text-gray-400" />
-                          </div>
-                          <input
-                            id={`facility-${index}-cost`}
-                            name={`facility-${index}-cost`}
-                            type="number"
-                            min="0"
-                            step="any"
-                            value={facility.cost || 0}
-                            onChange={(e) => {
-                              // Only allow numeric input
-                              const value = e.target.value;
-                              if (value === "" || /^\d*\.?\d*$/.test(value)) {
-                                handleFacilityChange(
-                                  index,
-                                  "cost",
-                                  parseFloat(value) || 0
-                                );
-                              }
-                            }}
-                            onKeyDown={(e) => {
-                              // Prevent non-numeric keys except for specific control keys
-                              const allowedKeys = [
-                                "Backspace",
-                                "Delete",
-                                "ArrowLeft",
-                                "ArrowRight",
-                                "Tab",
-                                ".",
-                                "0",
-                                "1",
-                                "2",
-                                "3",
-                                "4",
-                                "5",
-                                "6",
-                                "7",
-                                "8",
-                                "9",
-                              ];
-                              if (!allowedKeys.includes(e.key)) {
-                                e.preventDefault();
-                              }
-                            }}
-                            className={`w-full pl-10 pr-3 py-2 border ${
-                              errors.facilitiesInHospital?.[index]?.cost
-                                ? "border-red-500"
-                                : "border-gray-300"
-                            } rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500`}
-                            placeholder="Enter cost"
-                          />
-                        </div>
-                        {errors.facilitiesInHospital?.[index]?.cost && (
-                          <p className="mt-1 text-xs text-red-500">
-                            {errors.facilitiesInHospital[index].cost.message}
-                          </p>
-                        )}
+                        <select
+                          value={facility.isAvailable.toString()}
+                          onChange={(e) =>
+                            handleFacilityChange(
+                              index,
+                              "isAvailable",
+                              e.target.value === "true"
+                            )
+                          }
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                        >
+                          <option value="true">Available</option>
+                          <option value="false">Not Available</option>
+                        </select>
                       </div>
                     </div>
                   </div>
                 ))}
               </div>
+            )}
 
-              {/* Submit Button */}
-              <div className="mt-8">
+            {/* Navigation Buttons */}
+            <div className="mt-8 flex justify-between">
+              {currentStep > 1 ? (
+                <button
+                  type="button"
+                  onClick={handlePrevStep}
+                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+                >
+                  Back
+                </button>
+              ) : (
+                <div></div>
+              )}
+
+              {currentStep < 3 ? (
+                <button
+                  type="button"
+                  onClick={handleNextStep}
+                  className="px-4 py-2 bg-emerald-500 text-white rounded-md hover:bg-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+                >
+                  Next
+                </button>
+              ) : (
                 <button
                   type="submit"
-                  className={`w-full py-3 px-4 bg-green-600 text-white rounded-md font-medium ${
-                    isLoading
-                      ? "opacity-75 cursor-not-allowed"
-                      : "hover:bg-green-700"
-                  } transition-colors`}
                   disabled={isLoading}
+                  className={`px-6 py-2 bg-emerald-500 text-white rounded-md hover:bg-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 ${
+                    isLoading ? "opacity-75 cursor-not-allowed" : ""
+                  }`}
                 >
-                  {isLoading
-                    ? "Creating Account..."
-                    : "Create Hospital Account"}
+                  {isLoading ? "Registering..." : "Complete Registration"}
                 </button>
-              </div>
-            </form>
-
-            <div className="mt-6 text-center">
-              <p className="text-sm text-gray-600">
-                Already have an account?{" "}
-                <Link
-                  href={"/login/hospital"}
-                  className="font-semibold text-green-600 hover:text-green-500 underline"
-                >
-                  Sign in
-                </Link>
-              </p>
+              )}
             </div>
+          </form>
+
+          <div className="mt-6 text-center">
+            <p className="text-sm text-gray-600">
+              Already have an account?{" "}
+              <Link
+                href="/login/hospital"
+                className="font-medium text-emerald-600 hover:text-emerald-500"
+              >
+                Login
+              </Link>
+            </p>
           </div>
         </div>
-      </main>
+      </div>
     </div>
   );
 }

@@ -62,14 +62,9 @@ export interface LoginCredentials {
   password: string;
   rememberMe: boolean; // Optional field for "Remember Me" functionality
 }
-export interface LoginResponse {
-  success: boolean;
-  message: string;
-  data?: {
-    token: string;
-    hospitalId: string;
-  };
-  error?: unknown;
+
+export interface LoginResponse extends ApiResponse {
+  data?: any;
 }
 // API base URL - should be moved to an environment variable in production
 const API_BASE_URL =
@@ -178,6 +173,7 @@ export const updateHospital = async (
  * @param credentials - The login credentials (email and password)
  * @returns Promise with the API response
  */
+// Update your login function to store the token properly
 export const loginHospital = async (
   credentials: LoginCredentials
 ): Promise<LoginResponse> => {
@@ -198,44 +194,82 @@ export const loginHospital = async (
       }
     );
 
-    // Add debug log to see actual response structure
-    console.log("API Raw Response:", response.data.token, response.data);
+    // Store token for later use
+    if (response.data.token) {
+      localStorage.setItem("accessToken", response.data.token);
+    }
 
-    // Return the actual response structure
+    // Also store username if available
+    if (response.data.data && response.data.data.username) {
+      localStorage.setItem("hospitalUsername", response.data.data.username);
+    }
+
     return {
       success: true,
       message: response.data.message || "Login successful",
       data: response.data.data || {},
     };
   } catch (error) {
-    console.error("Login API error:", error);
-
     if (axios.isAxiosError(error)) {
-      // Handle Axios errors with more detailed logging
-      console.error("Axios error response:", error.response?.data);
-
-      // Extract error message from HTML response if needed
-      let errorMessage = "Login failed";
-      if (error.response?.data) {
-        const errorHtml = error.response.data;
-        const match = errorHtml.match(/Error: (.*?)<br>/);
-        if (match && match[1]) {
-          errorMessage = match[1];
-        }
-      }
-
       return {
         success: false,
-        message: errorMessage,
+        message: error.response?.data?.message || "Failed to login hospital",
         error: error.response?.data || error.message,
       };
     }
 
-    // Handle other errors
     return {
       success: false,
       message: "An unexpected error occurred",
       error: String(error),
+    };
+  }
+};
+
+export const logoutHospital = async (
+  hospitalUsername: string
+): Promise<ApiResponse> => {
+  console.log("Logging out hospital...");
+  try {
+    const response = await axios.patch(
+      `${API_BASE_URL}/api/v1/hospital/logout/${hospitalUsername}`,
+      {}, // Empty object as request body
+      {
+        headers: {},
+        withCredentials: true, // This ensures cookies are sent
+      }
+    );
+    return {
+      success: true,
+      message: "Logout successful",
+      data: response.data,
+    };
+  } catch (error) {
+    console.error("Logout API error:", error);
+
+    if (axios.isAxiosError(error)) {
+      // Handle 404 if you want to maintain that fallback
+      if (error.response?.status === 404) {
+        console.log(
+          "Logout endpoint not found - handling logout on client side only"
+        );
+        return {
+          success: true,
+          message: "Logged out on client side only",
+        };
+      }
+
+      return {
+        success: false,
+        message: error.response?.data?.message || "Failed to logout hospital",
+        error: error.response?.data || error.message,
+      };
+    }
+
+    return {
+      success: false,
+      message: "An unexpected error occurred",
+      error: error instanceof Error ? error.message : "Unknown error",
     };
   }
 };

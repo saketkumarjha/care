@@ -2,11 +2,11 @@
 import React, { useState } from "react";
 import { Heart, Eye, EyeOff, Mail, Lock, ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from 'next/navigation';
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { loginSchema, LoginFormData } from "@/lib/validation/loginSchema";
-import { loginHospital } from "@/lib/api/hospital";
+// import { loginHospital } from "@/lib/api/hospital";
 import { useHospitalAuth } from "@/context/HospitalAuthContext";
 
 function LoginPage() {
@@ -39,33 +39,19 @@ function LoginPage() {
         rememberMe: data.rememberMe,
       });
 
-      // Call the login API
-      const loginResponse = await loginHospital({
+      // Call the login function from context which will handle the API call
+      const loginSuccess = await login({
         email: data.email,
         password: data.password,
         rememberMe: data.rememberMe,
       });
 
-      // Log the full response for debugging
-      console.log("Raw login response:", loginResponse);
-
-      if (!loginResponse.success) {
-        console.error("Login failed:", loginResponse.message);
-        throw new Error(loginResponse.message);
-      }
-
-      // Log the response data
-      console.log("Login response data:", loginResponse.data);
-
-      // Store the hospital data in context
-      if (loginResponse.data) {
-        login(loginResponse.data);
-        console.log("Hospital data stored in context:", loginResponse.data);
+      if (!loginSuccess) {
+        throw new Error("Failed to login. Please check your credentials.");
       }
 
       // Redirect to hospital dashboard
       router.push("/hospital");
-      
     } catch (error) {
       console.error("Login submission error:", error);
       setLoginError(
